@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学霸神器数仓 - 权限系统测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .login-section {
+            display: block;
+        }
+
+        .main-section {
+            display: none;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .user-info {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .questions-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .question-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 16px;
+            transition: transform 0.2s;
+        }
+
+        .question-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .question-title {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+
+        .question-meta {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .question-meta span {
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .question-content {
+            color: #6c757d;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .question-options {
+            margin-top: 12px;
+        }
+
+        .question-options div {
+            padding: 4px 0;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .permissions-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .permission-item {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 3px solid #667eea;
+        }
+
+        .permission-name {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .permission-details {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 4px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #f5c6cb;
+            margin-bottom: 20px;
+        }
+
+        .success {
+            color: #155724;
+            background: #d1eddc;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #c3e6cb;
+            margin-bottom: 20px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .pagination button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e9ecef;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            border-bottom-color: #667eea;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .filters {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 学霸神器数仓</h1>
+            <p>权限系统验证平台</p>
+        </div>
+
+        <!-- 登录界面 -->
+        <div class="card login-section" id="loginSection">
+            <h2 style="margin-bottom: 20px; text-align: center;">用户登录</h2>
+            <div id="connectionStatus"
+                style="display: none; margin-bottom: 15px; padding: 10px; background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 4px; color: #0c5460;">
+            </div>
+            <div id="loginError" class="error" style="display: none;"></div>
+
+            <div class="form-group">
+                <label for="username">用户名：</label>
+                <input type="text" id="username" placeholder="请输入用户名">
+            </div>
+
+            <div class="form-group">
+                <label for="password">密码：</label>
+                <input type="password" id="password" placeholder="请输入密码（可留空）">
+            </div>
+
+            <button class="btn" onclick="login()">登录</button>
+
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e9ecef;">
+                <h4>测试账号：</h4>
+                <div style="display: grid; gap: 8px; margin-top: 12px;">
+                    <div>👤 <strong>class1_teacher</strong> - 刘老师（高一一班班主任）</div>
+                    <div>👤 <strong>math_teacher</strong> - 孙老师（跨班级任课教师）</div>
+                    <div>👤 <strong>principal</strong> - 张校长（校长权限）</div>
+                    <div>👤 <strong>admin</strong> - 系统管理员（最高权限）</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主界面 -->
+        <div class="main-section" id="mainSection">
+            <!-- 用户信息 -->
+            <div class="card">
+                <div class="user-info" id="userInfo"></div>
+                <button class="btn btn-danger" onclick="logout()">退出登录</button>
+            </div>
+
+            <!-- 统计信息 -->
+            <div class="card">
+                <h3 style="margin-bottom: 16px;">📊 数据统计</h3>
+                <div class="stats-grid" id="statsGrid">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+
+            <!-- 选项卡 -->
+            <div class="card">
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('questions')">📚 题目库</div>
+                    <div class="tab" onclick="switchTab('create')">➕ 创建题目</div>
+                    <div class="tab" onclick="switchTab('permissions')">🔐 我的权限</div>
+                </div>
+
+                <!-- 题目库 -->
+                <div class="tab-content active" id="questionsTab">
+                    <div class="filters">
+                        <div class="form-group">
+                            <label for="filterSubject">学科：</label>
+                            <select id="filterSubject" onchange="loadQuestions()">
+                                <option value="">全部学科</option>
+                                <option value="数学">数学</option>
+                                <option value="物理">物理</option>
+                                <option value="语文">语文</option>
+                                <option value="英语">英语</option>
+                                <option value="化学">化学</option>
+                                <option value="生物">生物</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="filterGrade">年级：</label>
+                            <select id="filterGrade" onchange="loadQuestions()">
+                                <option value="">全部年级</option>
+                                <option value="高一">高一</option>
+                                <option value="高二">高二</option>
+                                <option value="高三">高三</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="filterDifficulty">难度：</label>
+                            <select id="filterDifficulty" onchange="loadQuestions()">
+                                <option value="">全部难度</option>
+                                <option value="简单">简单</option>
+                                <option value="中等">中等</option>
+                                <option value="困难">困难</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="filterType">类型：</label>
+                            <select id="filterType" onchange="loadQuestions()">
+                                <option value="">全部类型</option>
+                                <option value="选择题">选择题</option>
+                                <option value="填空题">填空题</option>
+                                <option value="解答题">解答题</option>
+                                <option value="判断题">判断题</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="questions-grid" id="questionsGrid">
+                        <div class="loading">加载中...</div>
+                    </div>
+
+                    <div class="pagination" id="questionsPagination"></div>
+                </div>
+
+                <!-- 创建题目 -->
+                <div class="tab-content" id="createTab">
+                    <h4 style="margin-bottom: 16px;">➕ 创建新题目</h4>
+                    <div id="createMessage" style="display: none; margin-bottom: 16px;"></div>
+
+                    <form id="createQuestionForm" onsubmit="createQuestion(event)">
+                        <div class="form-row"
+                            style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                            <div class="form-group">
+                                <label for="questionTitle">题目标题 *</label>
+                                <input type="text" id="questionTitle" name="题目标题" required maxlength="200">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="questionType">题目类型 *</label>
+                                <select id="questionType" name="题目类型" required onchange="toggleOptions()">
+                                    <option value="">请选择题目类型</option>
+                                    <option value="选择题">选择题</option>
+                                    <option value="填空题">填空题</option>
+                                    <option value="解答题">解答题</option>
+                                    <option value="判断题">判断题</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row"
+                            style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                            <div class="form-group">
+                                <label for="questionSubject">学科 *</label>
+                                <select id="questionSubject" name="学科" required>
+                                    <option value="">请选择学科</option>
+                                    <option value="数学">数学</option>
+                                    <option value="物理">物理</option>
+                                    <option value="化学">化学</option>
+                                    <option value="语文">语文</option>
+                                    <option value="英语">英语</option>
+                                    <option value="生物">生物</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="questionGrade">年级 *</label>
+                                <select id="questionGrade" name="年级" required>
+                                    <option value="">请选择年级</option>
+                                    <option value="高一">高一</option>
+                                    <option value="高二">高二</option>
+                                    <option value="高三">高三</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="questionDifficulty">难度级别</label>
+                                <select id="questionDifficulty" name="难度级别">
+                                    <option value="简单">简单</option>
+                                    <option value="中等" selected>中等</option>
+                                    <option value="困难">困难</option>
+                                    <option value="很难">很难</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label for="questionContent">题目内容 *</label>
+                            <textarea id="questionContent" name="题目内容" required rows="4"
+                                placeholder="请输入题目内容..."></textarea>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label for="questionKnowledge">知识点</label>
+                            <input type="text" id="questionKnowledge" name="知识点" placeholder="如：二次函数、三角函数等">
+                        </div>
+
+                        <!-- 选择题选项 -->
+                        <div id="optionsContainer" style="display: none; margin-bottom: 20px;">
+                            <h5>选择题选项</h5>
+                            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <div class="form-group">
+                                    <label for="optionA">选项 A</label>
+                                    <input type="text" id="optionA" name="选项A">
+                                </div>
+                                <div class="form-group">
+                                    <label for="optionB">选项 B</label>
+                                    <input type="text" id="optionB" name="选项B">
+                                </div>
+                                <div class="form-group">
+                                    <label for="optionC">选项 C</label>
+                                    <input type="text" id="optionC" name="选项C">
+                                </div>
+                                <div class="form-group">
+                                    <label for="optionD">选项 D</label>
+                                    <input type="text" id="optionD" name="选项D">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="correctOption">正确答案</label>
+                                <select id="correctOption" name="正确选项">
+                                    <option value="">请选择正确答案</option>
+                                    <option value="A">A</option>
+                                    <option value="B">B</option>
+                                    <option value="C">C</option>
+                                    <option value="D">D</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row"
+                            style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                            <div class="form-group">
+                                <label for="questionAnswer">参考答案</label>
+                                <textarea id="questionAnswer" name="答案" rows="3" placeholder="请输入参考答案..."></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="questionExplanation">解析</label>
+                                <textarea id="questionExplanation" name="解析" rows="3"
+                                    placeholder="请输入解题思路和解析..."></textarea>
+                            </div>
+                        </div>
+
+                        <div style="text-align: center; margin-top: 24px;">
+                            <button type="submit" class="btn" style="margin-right: 12px;">创建题目</button>
+                            <button type="button" class="btn btn-secondary" onclick="resetCreateForm()">重置表单</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 权限管理 -->
+                <div class="tab-content" id="permissionsTab">
+                    <h4 style="margin-bottom: 16px;">🔐 当前用户权限列表</h4>
+                    <div class="permissions-list" id="permissionsList">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API基础URL配置
+        const API_BASE_URL = window.location.protocol === 'file:'
+            ? 'http://localhost:8080'
+            : window.location.origin;
+
+        let currentUser = null;
+        let currentPage = 1;
+        let currentFilters = {};
+
+        // 登录
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (!username) {
+                showError('请输入用户名');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password }),
+                    credentials: 'include'  // 包含cookie
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentUser = data.user;
+                    showMainSection();
+                } else {
+                    showError(data.message);
+                }
+            } catch (error) {
+                showError('登录失败：' + error.message);
+            }
+        }
+
+        // 退出登录
+        async function logout() {
+            try {
+                await fetch(`${API_BASE_URL}/api/logout`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                currentUser = null;
+                showLoginSection();
+            } catch (error) {
+                console.error('退出登录失败:', error);
+            }
+        }
+
+        // 显示登录界面
+        function showLoginSection() {
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('mainSection').style.display = 'none';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            hideError();
+        }
+
+        // 显示主界面
+        function showMainSection() {
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('mainSection').style.display = 'block';
+
+            // 显示用户信息
+            document.getElementById('userInfo').innerHTML = `
+                <h4>👤 当前用户</h4>
+                <p><strong>姓名：</strong>${currentUser.real_name}</p>
+                <p><strong>用户名：</strong>${currentUser.username}</p>
+                <p><strong>用户类型：</strong>${currentUser.user_type}</p>
+                <p><strong>用户ID：</strong>${currentUser.user_id}</p>
+            `;
+
+            // 加载数据
+            loadStatistics();
+            loadQuestions();
+            loadPermissions();
+        }
+
+        // 加载统计信息
+        async function loadStatistics() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/statistics/overview`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    const stats = data.statistics;
+                    document.getElementById('statsGrid').innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-number">${stats.questions.total_questions || 0}</div>
+                            <div class="stat-label">可访问题目总数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${stats.questions.math_questions || 0}</div>
+                            <div class="stat-label">数学题目</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${stats.questions.physics_questions || 0}</div>
+                            <div class="stat-label">物理题目</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${stats.permissions.total_permissions || 0}</div>
+                            <div class="stat-label">拥有权限数</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('加载统计信息失败:', error);
+            }
+        }
+
+        // 加载题目列表
+        async function loadQuestions(page = 1) {
+            currentPage = page;
+
+            const params = new URLSearchParams({
+                page: page,
+                limit: 10,
+                subject: document.getElementById('filterSubject').value,
+                grade: document.getElementById('filterGrade').value,
+                difficulty: document.getElementById('filterDifficulty').value,
+                type: document.getElementById('filterType').value
+            });
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/questions?${params}`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    displayQuestions(data.questions);
+                    displayPagination(data.page, Math.ceil(data.total / data.limit), data.total);
+                } else {
+                    document.getElementById('questionsGrid').innerHTML = '<div class="error">加载题目失败</div>';
+                }
+            } catch (error) {
+                console.error('加载题目失败:', error);
+                document.getElementById('questionsGrid').innerHTML = '<div class="error">加载题目失败</div>';
+            }
+        }
+
+        // 显示题目列表
+        function displayQuestions(questions) {
+            const grid = document.getElementById('questionsGrid');
+
+            if (questions.length === 0) {
+                grid.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 40px;">暂无可访问的题目</div>';
+                return;
+            }
+
+            grid.innerHTML = questions.map(q => `
+                <div class="question-card">
+                    <div class="question-title">${q.题目标题}</div>
+                    <div class="question-meta">
+                        <span>📚 ${q.学科}</span>
+                        <span>🎓 ${q.年级}</span>
+                        <span>📝 ${q.题目类型}</span>
+                        <span>⭐ ${q.难度级别}</span>
+                        <span>👀 ${q.使用次数}次</span>
+                        <span>✅ ${q.正确率}%</span>
+                    </div>
+                    <div class="question-content">${q.题目内容}</div>
+                    ${q.题目类型 === '选择题' && q.选项A ? `
+                        <div class="question-options">
+                            <div>A. ${q.选项A}</div>
+                            <div>B. ${q.选项B}</div>
+                            <div>C. ${q.选项C}</div>
+                            <div>D. ${q.选项D}</div>
+                        </div>
+                    ` : ''}
+                    <div style="margin-top: 12px; display: flex; gap: 8px;">
+                        <button class="btn" onclick="viewQuestionDetail('${q.题目ID}')">查看详情</button>
+                        <button class="btn btn-secondary" onclick="viewQuestionPermissions('${q.题目ID}')">权限信息</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 显示分页
+        function displayPagination(current, total, totalItems) {
+            const pagination = document.getElementById('questionsPagination');
+
+            if (total <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let html = `<div style="margin-right: 16px; line-height: 32px;">共 ${totalItems} 道题目</div>`;
+
+            // 上一页
+            if (current > 1) {
+                html += `<button onclick="loadQuestions(${current - 1})">上一页</button>`;
+            }
+
+            // 页码
+            for (let i = Math.max(1, current - 2); i <= Math.min(total, current + 2); i++) {
+                html += `<button class="${i === current ? 'active' : ''}" onclick="loadQuestions(${i})">${i}</button>`;
+            }
+
+            // 下一页
+            if (current < total) {
+                html += `<button onclick="loadQuestions(${current + 1})">下一页</button>`;
+            }
+
+            pagination.innerHTML = html;
+        }
+
+        // 查看题目详情
+        async function viewQuestionDetail(questionId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/questions/${questionId}`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    const q = data.question;
+                    alert(`题目详情：\n\n标题：${q.题目标题}\n内容：${q.题目内容}\n\n答案：${q.答案}\n解析：${q.解析}\n\n创建者：${q.创建者姓名}\n创建时间：${q.创建时间}`);
+                } else {
+                    alert('查看失败：' + data.message);
+                }
+            } catch (error) {
+                alert('查看失败：' + error.message);
+            }
+        }
+
+        // 查看题目权限
+        async function viewQuestionPermissions(questionId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/questions/${questionId}/permissions`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    const permissions = data.permissions;
+                    const permissionText = permissions.map(p =>
+                        `${p.授权对象名称} - ${p.权限类型} (${p.权限来源})`
+                    ).join('\n');
+                    alert(`题目权限信息：\n\n${permissionText}`);
+                } else {
+                    alert('查看失败：' + data.message);
+                }
+            } catch (error) {
+                alert('查看失败：' + error.message);
+            }
+        }
+
+        // 加载权限列表
+        async function loadPermissions() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/user/permissions`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    const permissions = data.permissions;
+                    document.getElementById('permissionsList').innerHTML = permissions.map(p => `
+                        <div class="permission-item">
+                            <div class="permission-name">🔐 ${p.权限名称}</div>
+                            <div class="permission-details">
+                                资源类型：${p.资源类型} | 操作类型：${p.操作类型} | 
+                                组织：${p.组织名称} | 关系：${p.关系类型}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    document.getElementById('permissionsList').innerHTML = '<div class="error">加载权限失败</div>';
+                }
+            } catch (error) {
+                console.error('加载权限失败:', error);
+                document.getElementById('permissionsList').innerHTML = '<div class="error">加载权限失败</div>';
+            }
+        }
+
+        // 切换选项卡
+        function switchTab(tabName) {
+            // 更新选项卡样式
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+
+            // 加载对应数据
+            if (tabName === 'permissions') {
+                loadPermissions();
+            } else if (tabName === 'questions') {
+                loadQuestions();
+            }
+        }
+
+        // 根据题目类型显示/隐藏选择题选项
+        function toggleOptions() {
+            const questionType = document.getElementById('questionType').value;
+            const optionsContainer = document.getElementById('optionsContainer');
+
+            if (questionType === '选择题') {
+                optionsContainer.style.display = 'block';
+                // 设置选择题选项为必填
+                ['optionA', 'optionB', 'optionC', 'optionD', 'correctOption'].forEach(id => {
+                    const element = document.getElementById(id);
+                    element.required = true;
+                });
+            } else {
+                optionsContainer.style.display = 'none';
+                // 取消选择题选项必填
+                ['optionA', 'optionB', 'optionC', 'optionD', 'correctOption'].forEach(id => {
+                    const element = document.getElementById(id);
+                    element.required = false;
+                    element.value = '';
+                });
+            }
+        }
+
+        // 创建题目
+        async function createQuestion(event) {
+            event.preventDefault();
+
+            const form = document.getElementById('createQuestionForm');
+            const formData = new FormData(form);
+            const data = {};
+
+            // 收集表单数据
+            for (let [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/questions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                    credentials: 'include'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showCreateMessage('✅ ' + result.message, 'success');
+                    resetCreateForm();
+                    // 切换到题目库选项卡并刷新
+                    setTimeout(() => {
+                        document.querySelector('.tab[onclick*="questions"]').click();
+                        loadQuestions();
+                    }, 1500);
+                } else {
+                    showCreateMessage('❌ ' + result.message, 'error');
+                }
+            } catch (error) {
+                showCreateMessage('❌ 创建失败: ' + error.message, 'error');
+            }
+        }
+
+        // 重置创建表单
+        function resetCreateForm() {
+            document.getElementById('createQuestionForm').reset();
+            document.getElementById('optionsContainer').style.display = 'none';
+            hideCreateMessage();
+        }
+
+        // 显示创建消息
+        function showCreateMessage(message, type = 'info') {
+            const messageDiv = document.getElementById('createMessage');
+            messageDiv.textContent = message;
+            messageDiv.style.display = 'block';
+            messageDiv.className = type === 'success' ? 'success' : 'error';
+
+            // 3秒后自动隐藏成功消息
+            if (type === 'success') {
+                setTimeout(hideCreateMessage, 3000);
+            }
+        }
+
+        // 隐藏创建消息
+        function hideCreateMessage() {
+            document.getElementById('createMessage').style.display = 'none';
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            const errorDiv = document.getElementById('loginError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // 隐藏错误信息
+        function hideError() {
+            document.getElementById('loginError').style.display = 'none';
+        }
+
+        // 显示连接状态
+        function showConnectionStatus(message, isSuccess = true) {
+            const statusDiv = document.getElementById('connectionStatus');
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = isSuccess ? '#d1eddc' : '#f8d7da';
+            statusDiv.style.borderColor = isSuccess ? '#c3e6cb' : '#f5c6cb';
+            statusDiv.style.color = isSuccess ? '#155724' : '#721c24';
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function () {
+            // 显示连接检查状态
+            showConnectionStatus(`🔗 正在连接服务器 ${API_BASE_URL}...`);
+
+            // 检查是否已登录
+            fetch(`${API_BASE_URL}/api/user/permissions`, {
+                credentials: 'include'
+            })
+                .then(response => {
+                    showConnectionStatus('✅ 服务器连接成功！');
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error('未登录');
+                })
+                .then(data => {
+                    if (data.success) {
+                        // 已登录，显示主界面
+                        showMainSection();
+                    }
+                })
+                .catch((error) => {
+                    // 未登录或连接失败，显示登录界面
+                    if (error.message === '未登录') {
+                        showConnectionStatus('✅ 服务器连接成功！请登录');
+                    } else {
+                        showConnectionStatus('❌ 无法连接到服务器，请确保Flask应用正在运行', false);
+                    }
+                    showLoginSection();
+                });
+
+            // 回车键登录
+            document.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter' && document.getElementById('loginSection').style.display !== 'none') {
+                    login();
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
