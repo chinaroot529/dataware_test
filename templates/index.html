@@ -211,32 +211,7 @@
             font-size: 14px;
         }
 
-        .permissions-list {
-            max-height: 300px;
-            overflow-y: auto;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 16px;
-        }
 
-        .permission-item {
-            padding: 8px 12px;
-            margin-bottom: 8px;
-            background: #f8f9fa;
-            border-radius: 4px;
-            border-left: 3px solid #667eea;
-        }
-
-        .permission-name {
-            font-weight: 600;
-            color: #495057;
-        }
-
-        .permission-details {
-            font-size: 12px;
-            color: #6c757d;
-            margin-top: 4px;
-        }
 
         .loading {
             text-align: center;
@@ -310,6 +285,10 @@
             display: block;
         }
 
+        .radio-inline>input {
+            margin-right: 6px;
+        }
+
         @media (max-width: 768px) {
             .filters {
                 grid-template-columns: 1fr;
@@ -368,7 +347,13 @@
         <div class="main-section" id="mainSection">
             <!-- 用户信息 -->
             <div class="card">
-                <div class="user-info" id="userInfo"></div>
+                <div class="user-info" id="userInfo">
+                    <h4>👤 当前用户</h4>
+                    <p><strong>姓名：</strong><span id="labelRealName"></span></p>
+                    <p><strong>用户名：</strong><span id="labelUsername"></span></p>
+                    <p><strong>用户类型：</strong><span id="labelUserType"></span></p>
+                    <p><strong>用户ID：</strong><span id="labelUserId"></span></p>
+                </div>
                 <button class="btn btn-danger" onclick="logout()">退出登录</button>
             </div>
 
@@ -385,7 +370,6 @@
                 <div class="tabs">
                     <div class="tab active" onclick="switchTab('questions')">📚 题目库</div>
                     <div class="tab" onclick="switchTab('create')">➕ 创建题目</div>
-                    <div class="tab" onclick="switchTab('permissions')">🔐 我的权限</div>
                 </div>
 
                 <!-- 题目库 -->
@@ -505,6 +489,26 @@
                         </div>
 
                         <div class="form-group" style="margin-bottom: 20px;">
+                            <!-- 归类路径 -->
+                            <div class="form-group" id="pathGroup" style="margin-bottom:24px;">
+                                <label style="font-weight:600;">归类路径 *</label>
+                                <div style="display:flex;align-items:center;gap:24px;margin-top:8px;">
+                                    <label class="radio-inline">
+                                        <input type="radio" name="pathMode" value="default" checked
+                                            onchange="toggleOrgTree()"> 学段默认
+                                    </label>
+                                    <label class="radio-inline">
+                                        <input type="radio" name="pathMode" value="custom" onchange="toggleOrgTree()">
+                                        选择组织
+                                    </label>
+                                    <label class="radio-inline">
+                                        <input type="radio" name="pathMode" value="private" onchange="toggleOrgTree()">
+                                        仅自己可见
+                                    </label>
+                                    <select id="orgSelect"
+                                        style="flex:1;max-width:420px;padding:8px;display:none;"></select>
+                                </div>
+                            </div>
                             <label for="questionContent">题目内容 *</label>
                             <textarea id="questionContent" name="题目内容" required rows="4"
                                 placeholder="请输入题目内容..."></textarea>
@@ -569,13 +573,7 @@
                     </form>
                 </div>
 
-                <!-- 权限管理 -->
-                <div class="tab-content" id="permissionsTab">
-                    <h4 style="margin-bottom: 16px;">🔐 当前用户权限列表</h4>
-                    <div class="permissions-list" id="permissionsList">
-                        <div class="loading">加载中...</div>
-                    </div>
-                </div>
+
             </div>
         </div>
     </div>
@@ -589,6 +587,20 @@
         let currentUser = null;
         let currentPage = 1;
         let currentFilters = {};
+
+        function loadProfile() {
+            fetch(`${API_BASE_URL}/api/user/profile`, { credentials: 'include' })
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success) {
+                        currentUser = d.user;
+                        document.getElementById('labelRealName').innerText = currentUser.real_name;
+                        document.getElementById('labelUsername').innerText = currentUser.username;
+                        document.getElementById('labelUserType').innerText = currentUser.user_type;
+                        document.getElementById('labelUserId').innerText = currentUser.user_id;
+                    }
+                });
+        }
 
         // 登录
         async function login() {
@@ -614,6 +626,9 @@
 
                 if (data.success) {
                     currentUser = data.user;
+                    // fetch profile to ensure consistency
+                    fetch(`${API_BASE_URL}/api/user/profile`, { credentials: 'include' })
+                        .then(r => r.json()).then(d => { if (d.success) currentUser = d.user; });
                     showMainSection();
                 } else {
                     showError(data.message);
@@ -650,20 +665,35 @@
         function showMainSection() {
             document.getElementById('loginSection').style.display = 'none';
             document.getElementById('mainSection').style.display = 'block';
-
-            // 显示用户信息
-            document.getElementById('userInfo').innerHTML = `
-                <h4>👤 当前用户</h4>
-                <p><strong>姓名：</strong>${currentUser.real_name}</p>
-                <p><strong>用户名：</strong>${currentUser.username}</p>
-                <p><strong>用户类型：</strong>${currentUser.user_type}</p>
-                <p><strong>用户ID：</strong>${currentUser.user_id}</p>
-            `;
-
-            // 加载数据
+            loadProfile();
             loadStatistics();
             loadQuestions();
-            loadPermissions();
+        }
+        // 切换归类路径选择
+        function toggleOrgTree() {
+            const mode = document.querySelector('input[name="pathMode"]:checked').value;
+            const sel = document.getElementById('orgSelect');
+
+            if (mode === 'custom') {
+                sel.style.display = 'block';
+                // Lazy‑load org tree once
+                if (!sel.options.length) {
+                    fetch(`${API_BASE_URL}/api/org/tree`, { credentials: 'include' })
+                        .then(r => r.json())
+                        .then(d => {
+                            if (d.success && d.data.length) {
+                                sel.innerHTML = d.data.map(o =>
+                                    `<option value="${o.组织路径}">${o.组织路径} - ${o.组织名称}</option>`
+                                ).join('');
+                            } else {
+                                sel.innerHTML = '<option value="">（无数据）</option>';
+                            }
+                        })
+                        .catch(() => { sel.innerHTML = '<option value="">加载失败</option>'; });
+                }
+            } else {
+                sel.style.display = 'none';
+            }
         }
 
         // 加载统计信息
@@ -688,10 +718,6 @@
                         <div class="stat-card">
                             <div class="stat-number">${stats.questions.physics_questions || 0}</div>
                             <div class="stat-label">物理题目</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${stats.permissions.total_permissions || 0}</div>
-                            <div class="stat-label">拥有权限数</div>
                         </div>
                     `;
                 }
@@ -763,6 +789,10 @@
                     <div style="margin-top: 12px; display: flex; gap: 8px;">
                         <button class="btn" onclick="viewQuestionDetail('${q.题目ID}')">查看详情</button>
                         <button class="btn btn-secondary" onclick="viewQuestionPermissions('${q.题目ID}')">权限信息</button>
+                        ${q.can_edit === 1
+                    ? `<button class="btn" style="background:#28a745;" onclick="openEdit('${q.题目ID}',1)">编辑</button>`
+                    : `<button class="btn" style="background:#ffc107;" onclick="applyEdit('${q.题目ID}')">申请编辑</button>`
+                }
                     </div>
                 </div>
             `).join('');
@@ -798,6 +828,7 @@
         }
 
         // 查看题目详情
+        let currentDetailId = null; // 记录当前详情题目id
         async function viewQuestionDetail(questionId) {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/questions/${questionId}`, {
@@ -807,13 +838,57 @@
 
                 if (data.success) {
                     const q = data.question;
+                    currentDetailId = questionId; // 记录给审核弹窗用
                     alert(`题目详情：\n\n标题：${q.题目标题}\n内容：${q.题目内容}\n\n答案：${q.答案}\n解析：${q.解析}\n\n创建者：${q.创建者姓名}\n创建时间：${q.创建时间}`);
+                    // 如果本人是创建者，显示审核按钮
+                    if (q.创建者ID === currentUser.user_id) {
+                        document.getElementById('btnShowRequests').style.display = 'inline-block';
+                    } else {
+                        document.getElementById('btnShowRequests').style.display = 'none';
+                    }
                 } else {
                     alert('查看失败：' + data.message);
                 }
             } catch (error) {
                 alert('查看失败：' + error.message);
             }
+        }
+        // 申请编辑
+        function applyEdit(qid) {
+            fetch(`${API_BASE_URL}/api/questions/${qid}/request-edit`, {
+                method: 'POST', credentials: 'include'
+            })
+                .then(r => r.json())
+                .then(d => {
+                    alert(d.success ? '申请已提交，等待所有者审批' : d.message || '申请失败');
+                });
+        }
+
+        // 显示待审核列表
+        function showEditRequests() {
+            fetch(`${API_BASE_URL}/api/questions/${currentDetailId}/edit-requests`, { credentials: 'include' })
+                .then(r => r.json()).then(d => {
+                    if (!d.success) { alert(d.message || '加载失败'); return; }
+                    const list = d.requests.length
+                        ? d.requests.map(r => `<li style="margin-bottom:8px;">申请人: ${r.申请人ID} (${new Date(r.申请时间).toLocaleString()})
+                            <button class="btn" style="margin-left:12px;" onclick="resolveReq('${currentDetailId}','${r.ACL_ID}','approve')">同意</button>
+                            <button class="btn btn-secondary" style="margin-left:6px;" onclick="resolveReq('${currentDetailId}','${r.ACL_ID}','reject')">拒绝</button></li>`).join('')
+                        : '<li>暂无待审核申请</li>';
+                    document.getElementById('requestList').innerHTML = list;
+                    document.getElementById('requestModal').style.display = 'flex';
+                });
+        }
+
+        // 审批
+        function resolveReq(qid, acl_id, act) {
+            fetch(`${API_BASE_URL}/api/questions/${qid}/edit-requests/${acl_id}/resolve`, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: act })
+            }).then(r => r.json()).then(d => {
+                alert(d.success ? '操作成功' : d.message || '操作失败');
+                if (d.success) { showEditRequests(); loadQuestions(currentPage); }
+            });
         }
 
         // 查看题目权限
@@ -838,33 +913,7 @@
             }
         }
 
-        // 加载权限列表
-        async function loadPermissions() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/user/permissions`, {
-                    credentials: 'include'
-                });
-                const data = await response.json();
 
-                if (data.success) {
-                    const permissions = data.permissions;
-                    document.getElementById('permissionsList').innerHTML = permissions.map(p => `
-                        <div class="permission-item">
-                            <div class="permission-name">🔐 ${p.权限名称}</div>
-                            <div class="permission-details">
-                                资源类型：${p.资源类型} | 操作类型：${p.操作类型} | 
-                                组织：${p.组织名称} | 关系：${p.关系类型}
-                            </div>
-                        </div>
-                    `).join('');
-                } else {
-                    document.getElementById('permissionsList').innerHTML = '<div class="error">加载权限失败</div>';
-                }
-            } catch (error) {
-                console.error('加载权限失败:', error);
-                document.getElementById('permissionsList').innerHTML = '<div class="error">加载权限失败</div>';
-            }
-        }
 
         // 切换选项卡
         function switchTab(tabName) {
@@ -876,9 +925,7 @@
             document.getElementById(tabName + 'Tab').classList.add('active');
 
             // 加载对应数据
-            if (tabName === 'permissions') {
-                loadPermissions();
-            } else if (tabName === 'questions') {
+            if (tabName === 'questions') {
                 loadQuestions();
             }
         }
@@ -919,6 +966,14 @@
                 data[key] = value;
             }
 
+            // 发送组织路径/仅自己可见
+            const mode = document.querySelector('input[name="pathMode"]:checked').value;
+            if (mode === 'custom') {
+                data['组织路径'] = document.getElementById('orgSelect').value;
+            } else if (mode === 'private') {
+                data['仅自己可见'] = true;
+            }
+
             try {
                 const response = await fetch(`${API_BASE_URL}/api/questions`, {
                     method: 'POST',
@@ -952,6 +1007,11 @@
             document.getElementById('createQuestionForm').reset();
             document.getElementById('optionsContainer').style.display = 'none';
             hideCreateMessage();
+            document.querySelector('input[name="pathMode"][value="default"]').checked = true;
+            const sel = document.getElementById('orgSelect');
+            sel.style.display = 'none';
+            sel.innerHTML = '';
+            document.getElementById('orgSelect').innerHTML = '';
         }
 
         // 显示创建消息
@@ -1000,20 +1060,20 @@
             showConnectionStatus(`🔗 正在连接服务器 ${API_BASE_URL}...`);
 
             // 检查是否已登录
-            fetch(`${API_BASE_URL}/api/user/permissions`, {
+            fetch(`${API_BASE_URL}/api/user/profile`, {
                 credentials: 'include'
             })
                 .then(response => {
                     showConnectionStatus('✅ 服务器连接成功！');
-                    if (response.ok) {
-                        return response.json();
-                    }
+                    if (response.ok) return response.json();
                     throw new Error('未登录');
                 })
                 .then(data => {
                     if (data.success) {
-                        // 已登录，显示主界面
+                        currentUser = data.user;
                         showMainSection();
+                    } else {
+                        throw new Error('未登录');
                     }
                 })
                 .catch((error) => {
@@ -1033,6 +1093,68 @@
                 }
             });
         });
+    </script>
+    <!-- 审核申请弹窗 -->
+    <div id="requestModal"
+        style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);align-items:center;justify-content:center;z-index:1000;">
+        <div style="background:#fff;padding:24px;border-radius:8px;width:90%;max-width:500px;">
+            <h3 style="margin-bottom:12px;">待审核编辑申请</h3>
+            <ul id="requestList" style="max-height:300px;overflow-y:auto;padding-left:18px;"></ul>
+            <div style="text-align:right;margin-top:12px;">
+                <button class="btn btn-secondary"
+                    onclick="document.getElementById('requestModal').style.display='none';">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <button id="btnShowRequests" class="btn btn-secondary"
+        style="display:none;position:fixed;bottom:32px;right:32px;z-index:998;"
+        onclick="showEditRequests()">审核编辑申请</button>
+    <!-- 编辑弹窗 -->
+    <div id="editModal"
+        style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);align-items:center;justify-content:center;z-index:999;">
+        <div style="background:#fff;border-radius:8px;padding:24px;width:90%;max-width:600px;">
+            <h3 style="margin-bottom:12px;">编辑题目</h3>
+            <textarea id="editContent" style="width:100%;height:180px;padding:8px;"></textarea>
+            <div id="overwriteChoice" style="margin:12px 0;">
+                <label><input type="radio" name="editMode" value="overwrite" checked> 覆盖原题目</label>
+                <label style="margin-left:24px;"><input type="radio" name="editMode" value="fork"> 创建副本</label>
+            </div>
+            <div style="text-align:right;">
+                <button class="btn" onclick="submitEdit()">保存</button>
+                <button class="btn btn-secondary" onclick="closeEdit()">取消</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        let editingQid = null, canOverwrite = false;
+        function openEdit(qid, canEdit) {
+            editingQid = qid; canOverwrite = canEdit === 1;
+            document.getElementById('editModal').style.display = 'flex';
+            document.getElementById('overwriteChoice').style.display = canOverwrite ? 'block' : 'none';
+            fetch(`${API_BASE_URL}/api/questions/${qid}`, { credentials: 'include' })
+                .then(r => r.json()).then(d => {
+                    if (d.success) {
+                        document.getElementById('editContent').value = d.question.题目内容;
+                    }
+                });
+        }
+        function closeEdit() { document.getElementById('editModal').style.display = 'none'; }
+        async function submitEdit() {
+            const payload = {
+                '题目内容': document.getElementById('editContent').value,
+                overwrite: canOverwrite && document.querySelector('input[name="editMode"]:checked').value === 'overwrite'
+            };
+            const res = await fetch(`${API_BASE_URL}/api/questions/${editingQid}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(payload)
+            });
+            const d = await res.json();
+            alert(d.success ? (d.mode === 'overwrite' ? '已覆盖保存' : '已创建副本') : '保存失败');
+            closeEdit(); loadQuestions(currentPage);
+        }
     </script>
 </body>
 

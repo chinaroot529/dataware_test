@@ -1,0 +1,349 @@
+services:
+
+  ############################
+  # 1. Kafka 消息队列服务   #
+  ############################
+
+
+  #################################
+  # 2. MySQL 元数据库             #
+  #################################
+  mysql:
+    image: mysql:8.4.5
+    container_name: hive-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: metastore  # Hive 元数据库
+      TZ: "Asia/Shanghai"
+    volumes:
+      - ./mysql/data/:/var/lib/mysql
+      - ./mysql/conf/my.cnf:/etc/my.cnf
+      - ./mysql/log:/var/log/mysql
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - 13306:3306
+    command:
+      - --mysql-native-password=on
+    networks:
+      - data-network
+
+  #################################
+  # Hive Metastore 3.1.3 (独立)   #
+  #################################
+  # hive-metastore:
+  #   image: apache/hive:3.1.3
+  #   container_name: hive-metastore
+  #   restart: on-failure
+  #   depends_on: [mysql]
+  #   environment:
+  #     SERVICE: metastore
+  #     DB_DRIVER:      mysql
+  #     DB_HOST:        mysql
+  #     DB_PORT:        3306
+  #     DB_NAME:        metastore
+  #     DB_USER:        root
+  #     DB_PASSWORD:    root
+  #     SKIP_SOURCING: "true"
+  #     SCHEMA_TYPE:    mysql  
+  #     HIVE_AUX_JARS_PATH: /opt/tez/*    # ← 告诉 Hive 把 Tez jar 加到 classpath
+  #     TEZ_CONF_DIR: /opt/tez/conf       # ← Tez 会在这里找 tez-site.xml
+  #     TEZ_HOME: /opt/tez
+  #     TZ:             Asia/Shanghai
+  #   entrypoint: >
+  #       /opt/hive/bin/hive --service metastore
+  #   ports: ["9083:9083"]
+  #   volumes:
+  #     - ./warehouse:/opt/warehouse
+  #     - ./hive-site.xml:/opt/hive/conf/hive-site.xml:ro
+  #     - ./mysql-connector-java-8.0.30.jar:/opt/hive/lib/mysql-connector-java-8.0.30.jar:ro
+  #     - ./doris_ext_jars/hudi-hadoop-mr-bundle-1.0.2.jar:/opt/hive/lib/hudi-hadoop-mr-bundle-1.0.2.jar:ro
+  #     - ./extra-jars/hudi-hive-sync-bundle-1.0.2.jar:/opt/hive/lib/hudi-hive-sync-bundle-1.0.2.jar:ro
+  #     - ./tez-0.10.2:/opt/tez:ro
+  #   networks: [data-network]
+
+  #################################
+  # HiveServer2 3.1.3             #
+  #################################
+  # hive-server2:
+  #   image: apache/hive:3.1.3
+  #   container_name: hive-server2
+  #   restart: on-failure
+  #   depends_on: [hive-metastore]
+  #   environment:
+  #     SERVICE: hiveserver2
+  #     HIVE_METASTORE_URI: thrift://hive-metastore:9083   # 关键！告诉 HS2 去连哪个 metastore
+  #     SKIP_SOURCING: "true"
+  #     TZ: Asia/Shanghai
+  #     HIVE_AUX_JARS_PATH: /opt/tez/*    # ← 告诉 Hive 把 Tez jar 加到 classpath
+  #     TEZ_CONF_DIR: /opt/tez/conf       # ← Tez 会在这里找 tez-site.xml
+  #     TEZ_HOME: /opt/tez
+  #   entrypoint: >
+  #       /opt/hive/bin/hive --service hiveserver2
+  #   ports: ["10000:10000"]     # Beeline / JDBC 就连这
+  #   volumes:
+  #     - ./warehouse:/opt/warehouse
+  #     - ./hive-site.xml:/opt/hive/conf/hive-site.xml:ro
+  #     - ./mysql-connector-java-8.0.30.jar:/opt/hive/lib/mysql-connector-java-8.0.30.jar:ro
+  #     - ./doris_ext_jars/hudi-hadoop-mr-bundle-1.0.2.jar:/opt/hive/lib/hudi-hadoop-mr-bundle-1.0.2.jar:ro
+  #     - ./extra-jars/hudi-hive-sync-bundle-1.0.2.jar:/opt/hive/lib/hudi-hive-sync-bundle-1.0.2.jar:ro
+  #     - ./tez-0.10.2:/opt/tez:ro
+  #   networks: [data-network]
+
+  ############################
+  # 4. Flink 分布式计算框架  #
+  ############################
+#   flink-jm:
+#     image: flink:1.20.1-scala_2.12-java17
+#     container_name: flink-jm
+#     command: ["jobmanager"]
+# #    depends_on: [hudi]
+#     environment:
+#       - JOB_MANAGER_RPC_ADDRESS=flink-jm
+#       - TZ=Asia/Shanghai
+#     ports:
+#       - "8081:8081"
+#     volumes:
+#       - ./init/flink-jobs:/opt/flink/usrlib
+#       - ./warehouse:/opt/warehouse
+#       - ./flink_conf2.yaml:/opt/flink/conf/config.yaml 
+#       - ./flink-jars/hudi-flink1.20-bundle-1.0.2.jar:/opt/flink/lib/hudi-flink1.20-bundle-1.0.2.jar
+#       - ./flink-jars/flink-connector-jdbc-3.3.0-1.20.jar:/opt/flink/lib/flink-connector-jdbc-3.3.0-1.20.jar
+#       - ./flink-jars/flink-connector-kafka-3.4.0-1.20.jar:/opt/flink/lib/flink-connector-kafka-3.4.0-1.20.jar
+#       - ./mysql-connector-java-8.0.30.jar:/opt/flink/lib/mysql-connector-java-8.0.30.jar
+#       - ./flink-jars/woodstox-core-7.1.0.jar:/opt/flink/lib/woodstox-core-7.1.0.jar
+#       - ./flink-jars/stax2-api-4.2.1.jar:/opt/flink/lib/stax2-api-4.2.1.jar
+#       - ./flink-jars/hadoop-shaded-guava-1.3.0.jar:/opt/flink/lib/hadoop-shaded-guava-1.3.0.jar
+#       - ./flink-jars/commons-logging-1.2.jar:/opt/flink/lib/commons-logging-1.2.jar
+#       - ./flink-jars/commons-text-1.9.jar:/opt/flink/lib/commons-text-1.9.jar
+#       - ./flink-jars/commons-configuration2-2.7.jar:/opt/flink/lib/commons-configuration2-2.7.jar
+#       - ./flink-jars/kafka-clients-3.5.1.jar:/opt/flink/lib/kafka-clients-3.5.1.jar
+#       - ./flink-jars/hive-metastore-2.3.4.jar:/opt/flink/lib/hive-metastore-2.3.4.jar
+#       - ./flink-jars/hive-exec-2.3.4.jar:/opt/flink/lib/hive-exec-2.3.4.jar
+#       - ./flink-jars/hive-service-2.3.4.jar:/opt/flink/lib/hive-service-2.3.4.jar
+#       - ./flink-jars/hive-jdbc-2.3.4.jar:/opt/flink/lib/hive-jdbc-2.3.4.jar
+#       - ./flink-jars/hive-common-2.3.4.jar:/opt/flink/lib/hive-common-2.3.4.jar
+#       - ./flink-jars/guava-33.4.8-jre.jar:/opt/flink/lib/guava-33.4.8-jre.jar
+#       - ./flink-jars/parquet-column-1.13.1.jar:/opt/flink/lib/parquet-column-1.13.1.jar
+#       - ./flink-jars/parquet-avro-1.13.1.jar:/opt/flink/lib/parquet-avro-1.13.1.jar
+#       - ./flink-jars/parquet-common-1.13.1.jar:/opt/flink/lib/parquet-common-1.13.1.jar
+#       - ./flink-jars/parquet-hadoop-1.13.1.jar:/opt/flink/lib/parquet-hadoop-1.13.1.jar
+#       - ./flink-jars/hadoop-jars:/opt/flink/lib/hadoop
+#       - ./flink-jars/flink-streaming-java-1.20.1.jar:/opt/flink/lib/flink-streaming-java-1.20.1.jar
+#     networks:
+#       - data-network
+
+#   flink-tm:
+#     image: flink:1.20.1-scala_2.12-java17
+#     container_name: flink-tm
+#     command: ["taskmanager"]
+#     depends_on: [flink-jm]
+#     environment:
+#       - JOB_MANAGER_RPC_ADDRESS=flink-jm
+#       - TZ=Asia/Shanghai
+#     volumes:
+#       - ./init/flink-jobs:/opt/flink/usrlib
+#       - ./warehouse:/opt/warehouse
+#       - ./flink_conf2.yaml:/opt/flink/conf/config.yaml 
+#       - ./flink-jars/hudi-flink1.20-bundle-1.0.2.jar:/opt/flink/lib/hudi-flink1.20-bundle-1.0.2.jar
+#       - ./flink-jars/flink-connector-jdbc-3.3.0-1.20.jar:/opt/flink/lib/flink-connector-jdbc-3.3.0-1.20.jar
+#       - ./flink-jars/flink-connector-kafka-3.4.0-1.20.jar:/opt/flink/lib/flink-connector-kafka-3.4.0-1.20.jar
+#       - ./mysql-connector-java-8.0.30.jar:/opt/flink/lib/mysql-connector-java-8.0.30.jar
+#       - ./flink-jars/woodstox-core-7.1.0.jar:/opt/flink/lib/woodstox-core-7.1.0.jar
+#       - ./flink-jars/stax2-api-4.2.1.jar:/opt/flink/lib/stax2-api-4.2.1.jar
+#       - ./flink-jars/hadoop-shaded-guava-1.3.0.jar:/opt/flink/lib/hadoop-shaded-guava-1.3.0.jar
+#       - ./flink-jars/commons-logging-1.2.jar:/opt/flink/lib/commons-logging-1.2.jar
+#       - ./flink-jars/commons-text-1.9.jar:/opt/flink/lib/commons-text-1.9.jar
+#       - ./flink-jars/commons-configuration2-2.7.jar:/opt/flink/lib/commons-configuration2-2.7.jar
+#       - ./flink-jars/kafka-clients-3.5.1.jar:/opt/flink/lib/kafka-clients-3.5.1.jar
+#       - ./flink-jars/hive-metastore-2.3.4.jar:/opt/flink/lib/hive-metastore-2.3.4.jar
+#       - ./flink-jars/hive-exec-2.3.4.jar:/opt/flink/lib/hive-exec-2.3.4.jar
+#       - ./flink-jars/hive-service-2.3.4.jar:/opt/flink/lib/hive-service-2.3.4.jar
+#       - ./flink-jars/hive-jdbc-2.3.4.jar:/opt/flink/lib/hive-jdbc-2.3.4.jar
+#       - ./flink-jars/hive-common-2.3.4.jar:/opt/flink/lib/hive-common-2.3.4.jar
+#       - ./flink-jars/guava-33.4.8-jre.jar:/opt/flink/lib/guava-33.4.8-jre.jar
+#       - ./flink-jars/parquet-column-1.13.1.jar:/opt/flink/lib/parquet-column-1.13.1.jar
+#       - ./flink-jars/parquet-avro-1.13.1.jar:/opt/flink/lib/parquet-avro-1.13.1.jar
+#       - ./flink-jars/parquet-common-1.13.1.jar:/opt/flink/lib/parquet-common-1.13.1.jar
+#       - ./flink-jars/parquet-hadoop-1.13.1.jar:/opt/flink/lib/parquet-hadoop-1.13.1.jar
+#       - ./flink-jars/hadoop-jars:/opt/flink/lib/hadoop
+#       - ./flink-jars/flink-streaming-java-1.20.1.jar:/opt/flink/lib/flink-streaming-java-1.20.1.jar
+#     networks:
+#       - data-network
+
+
+  ############################
+  # 6. Doris 单节点（FE+BE） #
+  ############################
+  doris-fe:
+    image: apache/doris:fe-3.0.5
+    container_name: doris-fe
+    hostname: fe1
+    environment:
+      TZ: Asia/Shanghai
+      FE_ROLE: master
+      FE_SERVERS: "fe1:172.28.0.10:9010"        # feName:feIP:editPort  ← 必须是 IP
+      FE_ID: "1"
+      PRIORITY_NETWORKS: "172.28.0.0/24"
+    volumes:
+      - ./doris_fe_data/fe/doris-meta/:/opt/apache-doris/fe/doris-meta
+      - ./doris_fe_data/fe/log/:/opt/apache-doris/fe/log/
+      - ./warehouse:/opt/warehouse
+      - ./doris_ext_jars/hive-common-3.1.3.jar:/opt/apache-doris/fe/lib/hive-common-3.1.3.jar:ro
+      - ./doris_ext_jars/hive-exec-3.1.3-core.jar:/opt/apache-doris/fe/lib/hive-exec-3.1.3-core.jar:ro
+      - ./doris_ext_jars/hive-jdbc-3.1.3.jar:/opt/apache-doris/fe/lib/hive-jdbc-3.1.3.jar:ro
+      - ./doris_ext_jars/hive-metastore-3.1.3.jar:/opt/apache-doris/fe/lib/hive-metastore-3.1.3.jar:ro
+      - ./doris_ext_jars/hive-service-3.1.3.jar:/opt/apache-doris/fe/lib/hive-service-3.1.3.jar:ro
+      - ./doris_ext_jars/hive-service-rpc-3.1.3.jar:/opt/apache-doris/fe/lib/hive-service-rpc-3.1.3.jar:ro
+      - ./doris_ext_jars/hudi-hadoop-mr-1.0.2.jar:/opt/apache-doris/fe/lib/hudi-hadoop-mr-1.0.2.jar:ro
+      - ./doris_ext_jars/parquet-avro-1.13.1.jar:/opt/apache-doris/fe/lib/parquet-avro-1.13.1.jar:ro
+      - ./doris_ext_jars/parquet-column-1.13.1.jar:/opt/apache-doris/fe/lib/parquet-column-1.13.1.jar:ro
+      - ./doris_ext_jars/parquet-common-1.13.1.jar:/opt/apache-doris/fe/lib/parquet-common-1.13.1.jar:ro
+      - ./doris_ext_jars/parquet-hadoop-1.13.1.jar:/opt/apache-doris/fe/lib/parquet-hadoop-1.13.1.jar:ro
+      - ./doris_ext_jars/hive-storage-api-2.7.3.jar:/opt/apache-doris/fe/lib/hive-storage-api-2.7.3.jar:ro
+      - ./doris_ext_jars/hive-shims-0.23-3.1.3.jar:/opt/apache-doris/fe/lib/hive-shims-0.23-3.1.3.jar:ro
+      - ./doris_ext_jars/hive-shims-common-3.1.3.jar:/opt/apache-doris/fe/lib/hive-shims-common-3.1.3.jar:ro
+      - ./doris_ext_jars/hive-shims-3.1.3.jar:/opt/apache-doris/fe/lib/hive-shims-3.1.3.jar:ro
+      - ./doris_ext_jars/hadoop-common-3.3.5.jar:/opt/apache-doris/fe/lib/hadoop-common-3.3.5.jar:ro
+      - ./doris_ext_jars/hadoop-auth-3.3.5.jar:/opt/apache-doris/fe/lib/hadoop-auth-3.3.5.jar:ro
+      - ./doris_ext_jars/hadoop-client-runtime-3.3.5.jar:/opt/apache-doris/fe/lib/hadoop-client-runtime-3.3.5.jar:ro
+      - ./doris_ext_jars/curator-client-2.7.1.jar:/opt/apache-doris/fe/lib/curator-client-2.7.1.jar:ro
+      - ./doris_ext_jars/curator-framework-2.7.1.jar:/opt/apache-doris/fe/lib/curator-framework-2.7.1.jar:ro
+      - ./doris_ext_jars/zookeeper-3.4.14.jar:/opt/apache-doris/fe/lib/zookeeper-3.4.14.jar:ro
+      - ./doris_ext_jars/avro-1.11.3.jar:/opt/apache-doris/fe/lib/avro-1.11.3.jar:ro
+      - ./doris_ext_jars/hudi-hadoop-mr-bundle-1.0.2.jar:/opt/apache-doris/fe/lib/hudi-hadoop-mr-bundle-1.0.2.jar:ro
+    networks:
+      data-network:
+        ipv4_address: 172.28.0.10
+    ports:
+      - "18030:8030"   # FE WebUI   http://<宿主>:18030
+      - "19030:9030"   # MySQL 协议 mysql -h<宿主> -P19030 -uroot
+
+  doris-be:
+    image: apache/doris:be-3.0.5
+    container_name: doris-be
+    hostname: be1
+    depends_on: [doris-fe]
+    environment:
+      TZ: Asia/Shanghai
+      FE_SERVERS: "fe1:172.28.0.10:9010"        # 必须和 FE 完全一致
+      BE_ADDR: "172.28.0.11:9050"              # beIP:heartbeatPort
+    volumes:
+      - ./doris/be-storage:/opt/apache-doris/be/storage
+      - ./doris_be_data/be/script/:/docker-entrypoint-initdb.d/
+      - ./warehouse:/opt/warehouse
+      - ./doris_ext_jars/hive-common-3.1.3.jar:/opt/apache-doris/be/lib/hive-common-3.1.3.jar:ro
+      - ./doris_ext_jars/hive-exec-3.1.3-core.jar:/opt/apache-doris/be/lib/hive-exec-3.1.3-core.jar:ro
+      - ./doris_ext_jars/hive-jdbc-3.1.3.jar:/opt/apache-doris/be/lib/hive-jdbc-3.1.3.jar:ro
+      - ./doris_ext_jars/hive-metastore-3.1.3.jar:/opt/apache-doris/be/lib/hive-metastore-3.1.3.jar:ro
+      - ./doris_ext_jars/hive-service-3.1.3.jar:/opt/apache-doris/be/lib/hive-service-3.1.3.jar:ro
+      - ./doris_ext_jars/hive-service-rpc-3.1.3.jar:/opt/apache-doris/be/lib/hive-service-rpc-3.1.3.jar:ro
+      - ./doris_ext_jars/hudi-hadoop-mr-1.0.2.jar:/opt/apache-doris/be/lib/hudi-hadoop-mr-1.0.2.jar:ro
+      - ./doris_ext_jars/parquet-avro-1.13.1.jar:/opt/apache-doris/be/lib/parquet-avro-1.13.1.jar:ro
+      - ./doris_ext_jars/parquet-column-1.13.1.jar:/opt/apache-doris/be/lib/parquet-column-1.13.1.jar:ro
+      - ./doris_ext_jars/parquet-common-1.13.1.jar:/opt/apache-doris/be/lib/parquet-common-1.13.1.jar:ro
+      - ./doris_ext_jars/parquet-hadoop-1.13.1.jar:/opt/apache-doris/be/lib/parquet-hadoop-1.13.1.jar:ro
+      - ./doris_ext_jars/hive-storage-api-2.7.3.jar:/opt/apache-doris/be/lib/hive-storage-api-2.7.3.jar:ro
+      - ./doris_ext_jars/hive-shims-0.23-3.1.3.jar:/opt/apache-doris/be/lib/hive-shims-0.23-3.1.3.jar:ro
+      - ./doris_ext_jars/hive-shims-common-3.1.3.jar:/opt/apache-doris/be/lib/hive-shims-common-3.1.3.jar:ro
+      - ./doris_ext_jars/hive-shims-3.1.3.jar:/opt/apache-doris/be/lib/hive-shims-3.1.3.jar:ro
+      - ./doris_ext_jars/hadoop-common-3.3.5.jar:/opt/apache-doris/be/lib/hadoop-common-3.3.5.jar:ro
+      - ./doris_ext_jars/hadoop-auth-3.3.5.jar:/opt/apache-doris/be/lib/hadoop-auth-3.3.5.jar:ro
+      - ./doris_ext_jars/hadoop-client-runtime-3.3.5.jar:/opt/apache-doris/be/lib/hadoop-client-runtime-3.3.5.jar:ro
+      - ./doris_ext_jars/curator-client-2.7.1.jar:/opt/apache-doris/be/lib/curator-client-2.7.1.jar:ro
+      - ./doris_ext_jars/curator-framework-2.7.1.jar:/opt/apache-doris/be/lib/curator-framework-2.7.1.jar:ro
+      - ./doris_ext_jars/zookeeper-3.4.14.jar:/opt/apache-doris/be/lib/zookeeper-3.4.14.jar:ro
+      - ./doris_ext_jars/avro-1.11.3.jar:/opt/apache-doris/be/lib/avro-1.11.3.jar:ro
+      - ./doris_ext_jars/hudi-hadoop-mr-bundle-1.0.2.jar:/opt/apache-doris/be/lib/hudi-hadoop-mr-bundle-1.0.2.jar:ro
+      
+    networks:
+      data-network:
+        ipv4_address: 172.28.0.11
+  # 7. Superset BI 可视化工具 #
+  ############################
+
+
+  ##################################
+  # 8. Hudi 服务（Spark + Hive 兼容）#
+  ##################################
+  hudi:
+    image: apachehudi/hudi-hadoop_3.3.5-hive_2.3.3-sparkmaster_3.5.1:latest
+    container_name: hudi
+    hostname: hudi   
+    depends_on: [mysql] 
+    ports:
+      - "18080:18080"   # Spark UI（如启用）
+      - "4040:4040"
+      - "9083:9083"
+      - "8020:8020"
+      - "10000:10000"
+    environment:
+      - HIVE_HOME=/opt/hive
+      - SPARK_HOME=/opt/spark
+      - HUDI_CONF_DIR=/opt/hudi/conf
+      - HADOOP_CONF_DIR=/opt/hadoop/etc/hadoop
+      - TZ=Asia/Shanghai
+      - HIVE_AUX_JARS_PATH=/opt/hive/lib
+      - HIVE_METASTORE_DB_HOST=mysql
+      - HIVE_METASTORE_DB_NAME=metastore
+      - HIVE_METASTORE_DB_USER=root
+      - HIVE_METASTORE_DB_PASSWORD=root
+      - HIVE_METASTORE_PORT=9083
+      - HIVE_METASTORE_WAREHOUSE_DIR=/opt/hive/warehouse
+      - SERVICE=metastore
+      - DB_DRIVER=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=metastore
+      - DB_USER=root
+      - DB_PASSWORD=root
+      - SCHEMA_TYPE=mysql
+    volumes:
+      - ./warehouse:/opt/warehouse
+      - ./hudi_jobs:/opt/hudi/jobs
+      - ./hudi-spark3.5-bundle_2.12-1.0.2.jar:/opt/spark/jars/hudi-spark3.5-bundle_2.12-1.0.2.jar
+      - ./hudi_conf:/opt/hudi/conf
+      - ./init/spark-jobs/:/opt/spark/spark-jobs/
+      - ./spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+      - ./mysql-connector-java-8.0.30.jar:/opt/hive/lib/mysql-connector-java-8.0.30.jar
+      - ./mysql-connector-java-8.0.30.jar:/opt/spark/jars/mysql-connector-java-8.0.30.jar
+      - ./hive-site.xml:/opt/hive/conf/hive-site.xml
+      - ./hive-site.xml:/opt/spark/conf/hive-site.xml
+      - ./hive_data:/opt/hive/warehouse
+      - ./doris_ext_jars/spark-doris-connector-spark-3.5-25.1.0.jar:/opt/spark/jars/spark-doris-connector-spark-3.5-25.1.0.jar:ro
+    networks:
+      - data-network
+
+
+  #########################################
+  # 10. dolphinscheduler 工作流调度器              #
+  #########################################
+  dolphinscheduler:
+    image: apache/dolphinscheduler-standalone-server:3.2.2
+    container_name: dolphinscheduler
+    depends_on:
+      - mysql
+    ports:
+      - "12345:12345"  # DolphinScheduler API 默认端口
+      - "25333:25333"
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+   #   - ./mysql-connector-java-8.0.30.jar:/opt/dolphinscheduler/libs/api-server/mysql-connector-java-8.0.30.jar
+  #    - ./mysql-connector-java-8.0.30.jar:/opt/dolphinscheduler/libs/worker-server/mysql-connector-java-8.0.30.jar
+      - ./mysql-connector-java-8.0.30.jar:/opt/dolphinscheduler/libs/mysql-connector-java-8.0.30.jar
+      - ./spark:/opt/spark:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+  #    - ./init/spark-jobs:/opt/spark/spark-jobs
+    networks:
+      - data-network
+
+networks:
+  data-network: 
+    name: data-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+

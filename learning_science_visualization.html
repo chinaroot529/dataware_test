@@ -203,6 +203,12 @@
                 font-size: 2em;
             }
         }
+
+        .chart-desc {
+            margin-top: 10px;
+            font-size: 0.85em;
+            color: #4a5568;
+        }
     </style>
 </head>
 
@@ -238,6 +244,9 @@
                     </div>
                 </div>
                 <div id="retrievalChart" class="chart"></div>
+                <p class="chart-desc">
+                    图义：对比<strong>元认知准确率</strong>（自评掌握率）与<strong>实际掌握率</strong>的差距，并以<strong>检索增益</strong>衡量检索练习的即时提升，用于评估学生自我监控能力与检索练习价值。
+                </p>
             </div>
 
             <!-- 2. 间隔复习效果追踪 -->
@@ -264,6 +273,8 @@
                     </div>
                 </div>
                 <div id="spacingChart" class="chart"></div>
+                <p class="chart-desc">图义：结合<strong>遗忘曲线</strong>与<strong>复习效果</strong>曲线，找出<span
+                        style="white-space:nowrap;">2–7&nbsp;天</span>的最佳复习间隔区间，量化<strong>可欲困难指数</strong>，优化复习节奏。</p>
             </div>
 
             <!-- 3. 掌握学习进程监控 -->
@@ -276,6 +287,7 @@
                     </div>
                 </div>
                 <div id="masteryChart" class="chart"></div>
+                <p class="chart-desc">图义：漏斗展示<strong>掌握学习</strong>各环节（首测→补救→再测→拓展）的达标率，洞察学习投入与知识转化效率。</p>
             </div>
 
             <!-- 4. 教师增值效果评估 -->
@@ -288,10 +300,11 @@
                     </div>
                 </div>
                 <div id="valueAddedChart" class="chart"></div>
+                <p class="chart-desc">图义：基于<strong>Value‑Added&nbsp;Model</strong>比较不同教师对学生成绩增益的贡献，并给出置信区间，支持教学绩效评估。</p>
             </div>
 
             <!-- 5. 错因关联网络分析 -->
-            <div class="card full-width">
+            <!-- <div class="card full-width">
                 <div class="card-header">
                     <div class="card-icon">🕸️</div>
                     <div>
@@ -322,7 +335,7 @@
                         <span>粗心</span>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
             <!-- 6. 解题步骤深度分析 -->
             <div class="card full-width">
@@ -334,6 +347,7 @@
                     </div>
                 </div>
                 <div id="stepsChart" class="chart"></div>
+                <p class="chart-desc">图义：散点图按<strong>步骤复杂度</strong>映射用时与准确率，识别低效或高效解题策略，为流程优化提供依据。</p>
             </div>
 
             <!-- 成绩分析模块 -->
