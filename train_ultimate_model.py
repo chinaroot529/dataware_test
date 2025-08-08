@@ -173,6 +173,11 @@ def rows_from_xkw(resp: list[dict]) -> list[dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 # CSV loader (auto header + options 列粗识别)
 # ─────────────────────────────────────────────────────────────────────────────
+def _detect_sep(path: pathlib.Path) -> str:
+    with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+        head = f.read(2048)
+    return '\t' if ('\t' in head and head.count('\t') >= head.count(',')) else ','
+
 def load_csv(path: pathlib.Path) -> pd.DataFrame:
     """Robust loader for both legacy CSV and new Doris-exported TSV.
     - Auto-detect delimiter (tab vs comma)
@@ -187,10 +192,8 @@ def load_csv(path: pathlib.Path) -> pd.DataFrame:
         "school_id","visible","question_archive"
     ]
 
-    # Peek first kb to guess delimiter
-    with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-        head = f.read(2048)
-    sep = '\t' if ('\t' in head and head.count('\t') >= head.count(',')) else ','
+    # Detect delimiter (tab vs comma)
+    sep = _detect_sep(path)
 
     # First try: with header
     try:
@@ -265,14 +268,22 @@ def pipeline(dataset: pathlib.Path, save_enriched: bool = True):
     # 多次尝试获取非空文本
     sample_row = None
     query_text = ""
+    sample_type_id = None
     for _ in range(20):
         row = candidates.sample(1, random_state=rng_seed).iloc[0]
-        txt = build_text(row, only_stem=True)
+        # 若为选择题（type_id 1/2），查询文本带上 options 以提高匹配
+        try:
+            tpe = int(row.get('type_id')) if pd.notna(row.get('type_id')) else None
+        except Exception:
+            tpe = None
+        only_stem_flag = not (tpe in {1, 2})
+        txt = build_text(row, only_stem=only_stem_flag)
         if not txt:
             txt = build_text(row, only_stem=False)
         if txt:
             sample_row = row
             query_text = txt
+            sample_type_id = tpe
             break
         rng_seed += 1
     if sample_row is None:
@@ -283,11 +294,6 @@ def pipeline(dataset: pathlib.Path, save_enriched: bool = True):
     print("🎲  Sampled", src_questionid)
 
     # 2️⃣ 调学科网（携带本地题型作为 hint）
-    sample_type_id = None
-    try:
-        sample_type_id = int(sample_row.get('type_id')) if pd.notna(sample_row.get('type_id')) else None
-    except Exception:
-        sample_type_id = None
     type_ids_hint = [int(sample_type_id)] if sample_type_id is not None else None
     xkw_raw = call_xkw(query_text, TOP_K, type_ids=type_ids_hint)
     xkw_question_ids = [int(d["id"]) for d in xkw_raw]
@@ -297,14 +303,16 @@ def pipeline(dataset: pathlib.Path, save_enriched: bool = True):
     exist_set = set(df["question_id"].astype(str))
     new_rows  = [r for r in rows_from_xkw(xkw_raw) if str(r["question_id"]) not in exist_set]
     if new_rows:
+        before = len(df)
         df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
-        print(f"➕  Added {len(new_rows)} real questions → {len(df)} total")
+        df = df.drop_duplicates(subset=['question_id'], keep='first').reset_index(drop=True)
+        print(f"➕  Added {len(new_rows)} real questions → {len(df)} total (was {before}, dedup by question_id)")
         if save_enriched:
             base_stem = dataset.stem.replace("_enriched", "")
-            target_path = dataset.parent / f"{base_stem}_enriched.csv"
-            df.to_csv(target_path, index=False, encoding='utf-8')
+            target_path = dataset if dataset.stem.endswith('_enriched') else (dataset.parent / f"{base_stem}_enriched{dataset.suffix}")
+            df.to_csv(target_path, index=False, encoding='utf-8', sep='\t')
             print(f"💾  Enriched dataset saved to: {target_path}")
-            print(f"📊  Dataset growth: {original_count} → {len(df)} (+{len(new_rows)} questions)")
+            print(f"📊  Dataset growth: {original_count} → {len(df)} (+{len(df)-original_count} unique)")
     else:
         print("ℹ️  No new questions to add (all exist in dataset)")
 
@@ -459,15 +467,27 @@ def pipeline(dataset: pathlib.Path, save_enriched: bool = True):
     id64_to_qid = {}
     for q in df['question_id'].astype(str).tolist():
         id64_to_qid[to_int64_id(q)] = q
+    qid_to_type = {}
+    try:
+        qid_to_type = {str(r['question_id']): (int(r['type_id']) if pd.notna(r['type_id']) else None) for _, r in df.iterrows()}
+    except Exception:
+        qid_to_type = {}
+
     src_id64 = to_int64_id(str(src_questionid))
 
-    local_question_ids = []
-    for qid in I[0]:
-        if qid == -1 or int(qid) == src_id64:  # 排除自身
+    # 先收集同题型的候选，不足再补其它类型
+    same_type, others = [], []
+    for qid64 in I[0]:
+        if qid64 == -1 or int(qid64) == src_id64:
             continue
-        local_question_ids.append(id64_to_qid.get(int(qid), str(qid)))
-        if len(local_question_ids) == LOCAL_SEARCH_K:
+        qid_str = id64_to_qid.get(int(qid64), str(qid64))
+        if sample_type_id is not None and qid_to_type.get(qid_str) == sample_type_id:
+            same_type.append(qid_str)
+        else:
+            others.append(qid_str)
+        if len(same_type) + len(others) >= SEARCH_K:
             break
+    local_question_ids = (same_type + others)[:LOCAL_SEARCH_K]
     print(f"🧠  Local Top {LOCAL_SEARCH_K} Question IDs:", local_question_ids)
 
     # 6️⃣ 对比验证（XKW Top-5 是否包含于本地 Top-10）
