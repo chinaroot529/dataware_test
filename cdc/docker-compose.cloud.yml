@@ -1,0 +1,119 @@
+version: '3.8'
+
+services:
+  # Kafka Connect with Debezium (连接现有Kafka)
+  kafka-connect:
+    image: debezium/connect:2.5.0.Final
+    hostname: kafka-connect
+    container_name: kafka-connect
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: 192.168.99.6:9092
+      GROUP_ID: cdc-connect-cluster
+      CONFIG_STORAGE_TOPIC: cdc-connect-configs
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_FLUSH_INTERVAL_MS: 10000
+      OFFSET_STORAGE_TOPIC: cdc-connect-offsets
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_TOPIC: cdc-connect-status
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      # Debezium 特定配置
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: 'false'
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: 'false'
+      # JVM优化
+      KAFKA_HEAP_OPTS: "-Xmx1G -Xms1G"
+      # 插件路径
+      CONNECT_PLUGIN_PATH: '/kafka/connect,/usr/share/java,/usr/share/confluent-hub-components'
+    volumes:
+      - ./config:/opt/kafka/config
+    networks:
+      - 1panel-network
+    restart: unless-stopped
+
+  # Schema Registry (可选，但推荐用于生产环境)
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.5.1
+    hostname: schema-registry
+    container_name: schema-registry
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: '192.168.99.6:9092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    networks:
+      - 1panel-network
+    restart: unless-stopped
+
+  # Kafka UI (管理界面)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: production
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: 192.168.99.6:9092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+    networks:
+      - 1panel-network
+    restart: unless-stopped
+
+  # Debezium UI (CDC连接器管理)
+  debezium-ui:
+    image: debezium/debezium-ui:2.5.0.Final
+    container_name: debezium-ui
+    ports:
+      - "8082:8080"
+    environment:
+      KAFKA_CONNECT_URIS: http://kafka-connect:8083
+    networks:
+      - 1panel-network
+    restart: unless-stopped
+
+  # Prometheus (监控指标收集)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - 1panel-network
+    restart: unless-stopped
+
+  # Grafana (监控仪表板)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - 1panel-network
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  1panel-network:
+    external: true 

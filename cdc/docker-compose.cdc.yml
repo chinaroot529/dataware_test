@@ -1,0 +1,194 @@
+version: '3.8'
+
+services:
+  # Zookeeper for Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.1
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-logs:/var/lib/zookeeper/log
+    networks:
+      - cdc-network
+
+  # Kafka Broker
+  kafka:
+    image: confluentinc/cp-kafka:7.5.1
+    hostname: kafka
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "9997:9997"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_JMX_PORT: 9997
+      KAFKA_JMX_HOSTNAME: localhost
+      # CDC相关优化配置
+      KAFKA_LOG_RETENTION_HOURS: 168  # 7天
+      KAFKA_LOG_SEGMENT_BYTES: 104857600  # 100MB
+      KAFKA_LOG_CLEANUP_POLICY: delete
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - cdc-network
+
+  # Schema Registry
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.5.1
+    hostname: schema-registry
+    container_name: schema-registry
+    depends_on:
+      - kafka
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    networks:
+      - cdc-network
+
+  # Kafka Connect with Debezium
+  kafka-connect:
+    image: debezium/connect:2.5.0.Final
+    hostname: kafka-connect
+    container_name: kafka-connect
+    depends_on:
+      - kafka
+      - schema-registry
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: docker-connect-configs
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_FLUSH_INTERVAL_MS: 10000
+      OFFSET_STORAGE_TOPIC: docker-connect-offsets
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_TOPIC: docker-connect-status
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      # Debezium 特定配置
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: 'false'
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: 'false'
+      # JVM优化
+      KAFKA_HEAP_OPTS: "-Xmx1G -Xms1G"
+      # 插件路径
+      CONNECT_PLUGIN_PATH: '/kafka/connect,/usr/share/java,/usr/share/confluent-hub-components'
+    volumes:
+      - ./config:/opt/kafka/config
+    networks:
+      - cdc-network
+    command:
+      - bash
+      - -c
+      - |
+        # 启动Kafka Connect
+        /docker-entrypoint.sh start &
+        
+        # 等待Kafka Connect启动
+        echo "等待Kafka Connect启动..."
+        while ! curl -f -s http://localhost:8083/; do
+          sleep 5
+        done
+        
+        echo "Kafka Connect已启动，等待连接器注册..."
+        
+        # 保持容器运行
+        wait
+
+  # Kafka UI (管理界面)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+    networks:
+      - cdc-network
+
+  # Debezium UI (CDC连接器管理)
+  debezium-ui:
+    image: debezium/debezium-ui:2.5.0.Final
+    container_name: debezium-ui
+    depends_on:
+      - kafka-connect
+    ports:
+      - "8082:8080"
+    environment:
+      KAFKA_CONNECT_URIS: http://kafka-connect:8083
+    networks:
+      - cdc-network
+
+  # Prometheus (监控指标收集)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - cdc-network
+
+  # Grafana (监控仪表板)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - cdc-network
+
+volumes:
+  zookeeper-data:
+  zookeeper-logs:
+  kafka-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  cdc-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16 
